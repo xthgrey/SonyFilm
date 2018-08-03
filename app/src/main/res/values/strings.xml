@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">SonyFilm</string>
+    <string name="ble_device">蓝牙设备：</string>
+</resources>
