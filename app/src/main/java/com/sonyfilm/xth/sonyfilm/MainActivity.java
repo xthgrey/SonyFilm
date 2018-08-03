@@ -294,12 +294,13 @@ public class MainActivity extends AppCompatActivity {
             btSocket = btDev.createRfcommSocketToServiceRecord(uuid);
             bleDevice.setState("已连接");
             bleAdapter.notifyDataSetChanged();
-            btSocket.connect();
-            createBuffer();
-
             bleDeviceListView.setVisibility(View.GONE);
             filmInquireButton.setVisibility(View.VISIBLE);
             filmAmountView.setVisibility(View.VISIBLE);
+            btSocket.connect();
+            createBuffer();
+
+
 
         } catch (IOException e) {
             // TODO Auto-generated catch block
