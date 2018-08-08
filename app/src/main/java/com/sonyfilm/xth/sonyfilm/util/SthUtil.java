@@ -9,7 +9,7 @@ public class SthUtil {
      * @param b byte[] 需要转换的字节数组
      * @return String 十六进制字符串
      */
-    public static final String byte2hex(byte b[]) {
+    public static String byte2hex(byte b[]) {
         if (b == null) {
             throw new IllegalArgumentException(
                     "Argument b ( byte array ) is null! ");
@@ -28,7 +28,7 @@ public class SthUtil {
         return hs.toUpperCase();
     }
 
-    public static final short getCRC(byte[] data, int Len) {
+    public static short getCRC(byte[] data, int Len) {
         int Reg_CRC=0xffff;
         int temp;
         int i,j;
@@ -51,8 +51,12 @@ public class SthUtil {
         return (short)(Reg_CRC&0xffff);
     }
 
-    public static final short getRandomData(){
+    public static short getRandomData(){
         Random random = new Random();
         return (short) random.nextInt(65536);
+    }
+
+    public static short mergeByteToShort(byte high,byte low){
+        return (short)(((high &0x00FF) << 8) | (0x00ff & low));
     }
 }

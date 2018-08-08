@@ -3,8 +3,15 @@ package com.sonyfilm.xth.sonyfilm.util;
 public class Constants {
     public static final int PERMISSION_RESULT = 1;
     public static final int OPEN_BLUE_TOOTH = 2;
+    public static final int QR_RESULT = 3;
+
 
     public static final int BOND_LIST = 11;
+    public static final int SEARCH_FILM = 12;
+    public static final int REPEAT_SEND = 13;
+    public static final int RESET_FILM = 14;
+    public static final int SLEEP_OVER = 15;
+    public static final int REPEAT_TIME_OUT = 16;
 
     public static final int SEND_SIZE = 7;
     public static final int REC_SIZE = 9;

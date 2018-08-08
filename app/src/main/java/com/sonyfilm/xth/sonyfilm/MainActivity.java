@@ -16,7 +16,11 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
@@ -25,24 +29,30 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.sonyfilm.xth.sonyfilm.ble.BleAdapter;
+import com.sonyfilm.xth.sonyfilm.ble.BleData;
 import com.sonyfilm.xth.sonyfilm.ble.BleDevice;
 import com.sonyfilm.xth.sonyfilm.ble.BlueToothUtil;
 import com.sonyfilm.xth.sonyfilm.util.Constants;
 import com.sonyfilm.xth.sonyfilm.util.LogUtil;
 import com.sonyfilm.xth.sonyfilm.util.SthUtil;
+import com.uuzuche.lib_zxing.activity.CaptureActivity;
+import com.uuzuche.lib_zxing.activity.CodeUtils;
+import com.uuzuche.lib_zxing.activity.ZXingLibrary;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 import static com.sonyfilm.xth.sonyfilm.util.Constants.OPEN_BLUE_TOOTH;
 import static com.sonyfilm.xth.sonyfilm.util.Constants.REC_SIZE;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private BlueToothUtil blueToothUtil;
     private ListView bleDeviceListView;
@@ -54,12 +64,17 @@ public class MainActivity extends AppCompatActivity {
     private InputStream in;
     private byte[] sendBytes;
     private byte[] recBytes;
+    private BleData bleSendData;
+    private BleData bleRecData;
+    private Timer timer;
 
     private BleDevice itemClickBleDevice;
 
     //查询相关控件
+    private Toolbar toolBar;
     private Button filmInquireButton;
     private TextView filmAmountView;
+    private TextView choiseBleDeviceAddressView;
 
     private Handler handler = new Handler() {
         @Override
@@ -98,17 +113,82 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                     break;
+                case Constants.SEARCH_FILM://查询胶片
+                    timer.cancel();
+                    filmAmountView.setText((short) (bleRecData.getContent() + bleSendData.getRandom() - bleRecData.getRandom()) + "");
+                    filmInquireButton.setClickable(true);//恢复按键功能
+                    break;
+                case Constants.REPEAT_SEND://重发
+                    if (bleRecData.getContent() < 3) {
+                        sendData(bleSendData.getHeader(), bleSendData.getFunc(), bleSendData.getLength());
+                    } else {
+                        Toast.makeText(MainActivity.this, "通讯太差，请靠近机器，重启app！", Toast.LENGTH_LONG).show();
+                    }
+                    break;
+                case Constants.RESET_FILM://重置胶片
+                    timer.cancel();
+                    LogUtil.e("胶片已经重置:" + (short) (bleRecData.getContent() + bleSendData.getRandom() - bleRecData.getRandom()));
+                    break;
+                case Constants.SLEEP_OVER:
+                    filmInquireButton.setClickable(true);//取消按键功能
+                    break;
+                case Constants.REPEAT_TIME_OUT:
+                    Toast.makeText(MainActivity.this, "请靠近机器，重启app扫码！", Toast.LENGTH_LONG).show();
+                    break;
                 default:
                     break;
             }
         }
     };
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.tool_bar_menu, menu);//动态创建Toolbar中的菜单
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.scan_qr:
+//                LogUtil.d("you click scan qr!");
+//                sendData((byte) 0xA0, (byte) 0xFF, (byte) 0x07);
+//
+//                timer = new Timer();
+//                TimerTask task = new TimerTask() {
+//                    @Override
+//                    public void run() {
+//                        // 需要做的事:发送消息
+//                        sendData((byte) 0xA0, (byte) 0x55, (byte) 0x07);
+//
+//                        timer = new Timer();
+//                        TimerTask task = new TimerTask() {
+//                            @Override
+//                            public void run() {
+//                                Message message = new Message();
+//                                message.what = Constants.REPEAT_TIME_OUT;
+//                                handler.sendMessage(message);
+//                            }
+//                        };
+//                        timer.schedule(task, 500);
+//                    }
+//                };
+//                timer.schedule(task, 500);
+                Intent scanIntent = new Intent(this, QrcodeActivity.class);
+                startActivityForResult(scanIntent,Constants.QR_RESULT);
+
+                break;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        ZXingLibrary.initDisplayOpinion(this);
 
         blueToothUtil = new BlueToothUtil();
         filmWidget();
@@ -122,22 +202,19 @@ public class MainActivity extends AppCompatActivity {
     private void filmWidget() {
         filmInquireButton = (Button) findViewById(R.id.film_inquire);
         filmAmountView = (TextView) findViewById(R.id.film_amount);
+        choiseBleDeviceAddressView = (TextView) findViewById(R.id.choise_ble_device_address);
         filmInquireButton.setVisibility(View.GONE);
         filmAmountView.setVisibility(View.GONE);
-        filmInquireButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                sendData((byte)0xA0,(byte)0x01,(byte)0x07);
-            }
-        });
+        filmInquireButton.setOnClickListener(this);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     private void checkPermissions() {
         //判断是否有访问位置的权限，没有权限，直接申请位置权限
         if ((checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-                || (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, Constants.PERMISSION_RESULT);
+                || (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+                || (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.CAMERA}, Constants.PERMISSION_RESULT);
         } else {
             blueToothUtil.getBondDevice();
             registerBleReceiver();
@@ -191,6 +268,21 @@ public class MainActivity extends AppCompatActivity {
                     finish();
                 }
                 break;
+            case Constants.QR_RESULT:
+                    //处理扫描结果（在界面上显示）
+                    if (null != data) {
+                        Bundle bundle = data.getExtras();
+                        if (bundle == null) {
+                            return;
+                        }
+                        if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_SUCCESS) {
+                            String result = bundle.getString(CodeUtils.RESULT_STRING);
+                            Toast.makeText(this, "解析结果:" + result, Toast.LENGTH_LONG).show();
+                        } else if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_FAILED) {
+                            Toast.makeText(MainActivity.this, "解析二维码失败", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                break;
             default:
                 break;
         }
@@ -214,6 +306,26 @@ public class MainActivity extends AppCompatActivity {
         blueToothUtil.getBluetoothAdapter().disable();
         Toast.makeText(this, Constants.CLOSE_BLE, Toast.LENGTH_SHORT).show();
         super.onDestroy();
+    }
+
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()) {
+            case R.id.film_inquire:
+                sendData((byte) 0xA0, (byte) 0x01, (byte) 0x07);
+                filmInquireButton.setClickable(false);//取消按键功能
+                timer = new Timer();
+                TimerTask task = new TimerTask() {
+                    @Override
+                    public void run() {
+                        filmInquireButton.setClickable(true);//取消按键功能
+                    }
+                };
+                timer.schedule(task, 200);
+                break;
+            default:
+                break;
+        }
     }
 
     public class BleReceiver extends BroadcastReceiver {
@@ -297,9 +409,15 @@ public class MainActivity extends AppCompatActivity {
             bleDeviceListView.setVisibility(View.GONE);
             filmInquireButton.setVisibility(View.VISIBLE);
             filmAmountView.setVisibility(View.VISIBLE);
+            choiseBleDeviceAddressView.setText(bleDevice.getAddress());
+            toolBar = (Toolbar) findViewById(R.id.main_layout_toolbar);
+            setSupportActionBar(toolBar);//将toolBar作为ActionBar
+            //添加toolbar导航栏
+            ActionBar actionBar = getSupportActionBar();
+            actionBar.setTitle("");
+
             btSocket.connect();
             createBuffer();
-
 
 
         } catch (IOException e) {
@@ -325,33 +443,35 @@ public class MainActivity extends AppCompatActivity {
             in = btSocket.getInputStream();
             sendBytes = new byte[Constants.SEND_SIZE];
             recBytes = new byte[Constants.REC_SIZE];
+            bleSendData = new BleData();
+            bleRecData = new BleData();
 
             new Thread(new Runnable() {
                 @Override
                 public void run() {
                     int recCounter = 0;
                     try {
-                        while(true){
+                        while (true) {
                             recBytes[recCounter] = (byte) in.read();
-                            switch (recCounter){
+                            switch (recCounter) {
                                 case 0:
-                                    if(recBytes[recCounter] == (byte)0xA8){
-                                        recCounter ++;
-                                    }else{
+                                    if (recBytes[recCounter] == (byte) 0xA8) {
+                                        recCounter++;
+                                    } else {
                                         recCounter = 0;
                                     }
                                     break;
                                 case 1:
-                                    if(recBytes[recCounter] == (byte)0x01 || recBytes[recCounter] == (byte)0x55 || recBytes[recCounter] == (byte)0xFF){
-                                        recCounter ++;
-                                    }else{
+                                    if (recBytes[recCounter] == (byte) 0x01 || recBytes[recCounter] == (byte) 0x55 || recBytes[recCounter] == (byte) 0xFF) {
+                                        recCounter++;
+                                    } else {
                                         recCounter = 0;
                                     }
                                     break;
                                 case 2:
-                                    if(recBytes[recCounter] == (byte)0x09){
-                                        recCounter ++;
-                                    }else{
+                                    if (recBytes[recCounter] == (byte) 0x09) {
+                                        recCounter++;
+                                    } else {
                                         recCounter = 0;
                                     }
                                     break;
@@ -360,14 +480,37 @@ public class MainActivity extends AppCompatActivity {
                                 case 5:
                                 case 6:
                                 case 7:
-                                    recCounter ++;
+                                    recCounter++;
                                     break;
                                 case 8:
-                                    if((recBytes[Constants.REC_SIZE - 2] << 8 | recBytes[Constants.REC_SIZE - 1]) == SthUtil.getCRC(recBytes,REC_SIZE - 2)){
+                                    LogUtil.e("REC------：" + SthUtil.byte2hex(recBytes));
+                                    LogUtil.e("Native CRC------：" + SthUtil.getCRC(recBytes, REC_SIZE - 2));
+                                    LogUtil.e("Recv   CRC------：" + SthUtil.mergeByteToShort(recBytes[Constants.REC_SIZE - 1], recBytes[Constants.REC_SIZE - 2]));
+                                    if (SthUtil.mergeByteToShort(recBytes[Constants.REC_SIZE - 1], recBytes[Constants.REC_SIZE - 2]) == SthUtil.getCRC(recBytes, REC_SIZE - 2)) {
                                         LogUtil.e("CRC success!!!!");
+                                        bleRecData.setHeader(recBytes[0]);
+                                        bleRecData.setFunc(recBytes[1]);
+                                        bleRecData.setLength(recBytes[2]);
+                                        bleRecData.setRandom(SthUtil.mergeByteToShort(recBytes[4], recBytes[3]));
+                                        bleRecData.setContent(SthUtil.mergeByteToShort(recBytes[6], recBytes[5]));
+                                        bleRecData.setCrc16(SthUtil.mergeByteToShort(recBytes[8], recBytes[7]));
+                                        Message message = new Message();
+                                        switch (recBytes[1]) {
+                                            case (byte) 0x01:
+                                                message.what = Constants.SEARCH_FILM;
+                                                break;
+                                            case (byte) 0x55:
+                                                message.what = Constants.REPEAT_SEND;
+                                                break;
+                                            case (byte) 0xFF:
+                                                message.what = Constants.RESET_FILM;
+                                                break;
+                                            default:
+                                                break;
+                                        }
+                                        handler.sendMessage(message);
                                     }
-                                    recCounter =0;
-                                    LogUtil.e("REC------："+SthUtil.byte2hex(recBytes));
+                                    recCounter = 0;
                                     break;
                             }
                         }
@@ -390,22 +533,29 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
     private void sendData(byte header, byte func, byte length) {
         short crc16;
-        short randomData;
-        sendBytes[0] = header;
-        sendBytes[1] = func;
-        sendBytes[2] = length;
-        randomData = SthUtil.getRandomData();
-        sendBytes[4] = (byte) (randomData >> 8);
-        sendBytes[3] = (byte) randomData;
-        crc16 = SthUtil.getCRC(sendBytes,Constants.SEND_SIZE - 2);
+        bleSendData.setHeader(header);
+        bleSendData.setFunc(func);
+        bleSendData.setLength(length);
+        sendBytes[0] = bleSendData.getHeader();
+        sendBytes[1] = bleSendData.getFunc();
+        sendBytes[2] = bleSendData.getLength();
+
+        sendBytes[4] = (byte) (SthUtil.getRandomData() >> 8);
+        sendBytes[3] = (byte) SthUtil.getRandomData();
+        bleSendData.setRandom(SthUtil.mergeByteToShort(sendBytes[4], sendBytes[3]));
+
+        crc16 = SthUtil.getCRC(sendBytes, Constants.SEND_SIZE - 2);
         sendBytes[6] = (byte) (crc16 >> 8);
         sendBytes[5] = (byte) crc16;
+        bleSendData.setCrc16(SthUtil.mergeByteToShort(sendBytes[6], sendBytes[5]));
+
         try {
-            if(out != null){
+            if (out != null) {
                 out.write(sendBytes);
-                LogUtil.e("SEND------："+SthUtil.byte2hex(sendBytes));
+                LogUtil.e("SEND------：" + SthUtil.byte2hex(sendBytes));
             }
         } catch (IOException e) {
             e.printStackTrace();
