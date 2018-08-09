@@ -11,4 +11,37 @@
 
     </FrameLayout>
 
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:background="#00FFFFFF"
+            android:orientation="horizontal"
+            android:paddingBottom="60dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2" />
+
+            <ImageButton
+                android:id="@+id/light"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@mipmap/light" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
 </FrameLayout>

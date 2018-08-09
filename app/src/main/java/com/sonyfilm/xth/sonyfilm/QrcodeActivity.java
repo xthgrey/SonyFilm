@@ -4,11 +4,16 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.ImageButton;
 
 import com.uuzuche.lib_zxing.activity.CaptureFragment;
 import com.uuzuche.lib_zxing.activity.CodeUtils;
 
 public class QrcodeActivity extends AppCompatActivity {
+
+    private ImageButton light;
+    private boolean isLight;
     /**
      * 二维码解析回调函数
      */
@@ -52,5 +57,34 @@ public class QrcodeActivity extends AppCompatActivity {
          * 替换我们的扫描控件
          */
         getSupportFragmentManager().beginTransaction().replace(R.id.fl_my_container, captureFragment).commit();
+
+        light = (ImageButton)findViewById(R.id.light);
+        isLight = false;
+        light.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                isLight = !isLight;
+                if(isLight){
+                    /**
+                     * 打开闪光灯
+                     */
+                    CodeUtils.isLightEnable(true);
+                }else{
+                    /**
+                     * 关闭闪光灯
+                     */
+                    CodeUtils.isLightEnable(false);
+                }
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        /**
+         * 关闭闪光灯
+         */
+        CodeUtils.isLightEnable(false);
+        super.onDestroy();
     }
 }

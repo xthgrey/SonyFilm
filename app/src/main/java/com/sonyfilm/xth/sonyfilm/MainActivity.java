@@ -35,7 +35,6 @@ import com.sonyfilm.xth.sonyfilm.ble.BlueToothUtil;
 import com.sonyfilm.xth.sonyfilm.util.Constants;
 import com.sonyfilm.xth.sonyfilm.util.LogUtil;
 import com.sonyfilm.xth.sonyfilm.util.SthUtil;
-import com.uuzuche.lib_zxing.activity.CaptureActivity;
 import com.uuzuche.lib_zxing.activity.CodeUtils;
 import com.uuzuche.lib_zxing.activity.ZXingLibrary;
 
@@ -80,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
-                case Constants.BOND_LIST:
+                case Constants.BOND_LIST://显示蓝牙配对列表，和配对状态
                     bleDeviceListView = (ListView) findViewById(R.id.ble_list);
                     bleAdapter = new BleAdapter(MainActivity.this, R.layout.ble_device_item, blueToothUtil.getBleDeviceListList());
                     bleDeviceListView.setAdapter(bleAdapter);
@@ -98,9 +97,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                     //利用反射方法调用BluetoothDevice.createBond(BluetoothDevice remoteDevice);
                                     Method createBondMethod = BluetoothDevice.class
                                             .getMethod("createBond");
-                                    LogUtil.e("开始配对");
+                                    LogUtil.e(Constants.BLE_START_PAIR);
                                     returnValue = (Boolean) createBondMethod.invoke(btDev);
-                                    itemClickBleDevice.setState("开始配对");
+                                    itemClickBleDevice.setState(Constants.BLE_START_PAIR);
 
                                 } else if (btDev.getBondState() == BluetoothDevice.BOND_BONDED) {
                                     connect(btDev, itemClickBleDevice);
@@ -120,20 +119,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     break;
                 case Constants.REPEAT_SEND://重发
                     if (bleRecData.getContent() < 3) {
-                        sendData(bleSendData.getHeader(), bleSendData.getFunc(), bleSendData.getLength());
+                        bleSendData(bleSendData.getHeader(), bleSendData.getFunc(), bleSendData.getLength());
                     } else {
-                        Toast.makeText(MainActivity.this, "通讯太差，请靠近机器，重启app！", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, Constants.RESTART_APP, Toast.LENGTH_LONG).show();
                     }
                     break;
                 case Constants.RESET_FILM://重置胶片
                     timer.cancel();
                     LogUtil.e("胶片已经重置:" + (short) (bleRecData.getContent() + bleSendData.getRandom() - bleRecData.getRandom()));
                     break;
-                case Constants.SLEEP_OVER:
-                    filmInquireButton.setClickable(true);//取消按键功能
-                    break;
-                case Constants.REPEAT_TIME_OUT:
-                    Toast.makeText(MainActivity.this, "请靠近机器，重启app扫码！", Toast.LENGTH_LONG).show();
+                case Constants.REPEAT_TIME_OUT://重发超时
+                    Toast.makeText(MainActivity.this, Constants.RESTART_APP_SCAN, Toast.LENGTH_LONG).show();
                     break;
                 default:
                     break;
@@ -175,7 +171,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //                };
 //                timer.schedule(task, 500);
                 Intent scanIntent = new Intent(this, QrcodeActivity.class);
-                startActivityForResult(scanIntent,Constants.QR_RESULT);
+                startActivityForResult(scanIntent, Constants.QR_RESULT);
 
                 break;
         }
@@ -198,7 +194,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    //查询胶片相关操作
+    //查询胶片相关控件初始化
     private void filmWidget() {
         filmInquireButton = (Button) findViewById(R.id.film_inquire);
         filmAmountView = (TextView) findViewById(R.id.film_amount);
@@ -214,7 +210,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if ((checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
                 || (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
                 || (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.CAMERA}, Constants.PERMISSION_RESULT);
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.CAMERA}, Constants.PERMISSION_RESULT);
         } else {
             blueToothUtil.getBondDevice();
             registerBleReceiver();
@@ -230,7 +226,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        LogUtil.d(getClass().getName() + "---" + new Throwable().getStackTrace()[0].getMethodName() + " : " + "--requestCode:" + requestCode + "--permissions:" + permissions);
+        LogUtil.d(getClass().getName() + "---" + new Throwable().getStackTrace()[0].getMethodName() + " : " + "--requestCode:" + requestCode);
         boolean permission = true;
         switch (requestCode) {
             case Constants.PERMISSION_RESULT:
@@ -269,26 +265,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 break;
             case Constants.QR_RESULT:
-                    //处理扫描结果（在界面上显示）
-                    if (null != data) {
-                        Bundle bundle = data.getExtras();
-                        if (bundle == null) {
-                            return;
-                        }
-                        if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_SUCCESS) {
-                            String result = bundle.getString(CodeUtils.RESULT_STRING);
-                            Toast.makeText(this, "解析结果:" + result, Toast.LENGTH_LONG).show();
-                        } else if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_FAILED) {
-                            Toast.makeText(MainActivity.this, "解析二维码失败", Toast.LENGTH_LONG).show();
-                        }
+                //处理扫描结果（在界面上显示）
+                if (null != data) {
+                    Bundle bundle = data.getExtras();
+                    if (bundle == null) {
+                        return;
                     }
+                    if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_SUCCESS) {
+                        String result = bundle.getString(CodeUtils.RESULT_STRING);
+                        Toast.makeText(this, "解析结果:" + result, Toast.LENGTH_LONG).show();
+                    } else if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_FAILED) {
+                        Toast.makeText(MainActivity.this, Constants.QR_ANALYSIS_FAIL, Toast.LENGTH_LONG).show();
+                    }
+                }
                 break;
             default:
                 break;
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
-
+    //蓝牙广播注册
     private void registerBleReceiver() {
         blueToothUtil.getBluetoothAdapter().startDiscovery();
         IntentFilter intentFilter = new IntentFilter();
@@ -304,7 +300,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onDestroy() {
         unregisterReceiver(bleReceiver);
         blueToothUtil.getBluetoothAdapter().disable();
-        Toast.makeText(this, Constants.CLOSE_BLE, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, Constants.BLE_CLOSED, Toast.LENGTH_SHORT).show();
         super.onDestroy();
     }
 
@@ -312,7 +308,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.film_inquire:
-                sendData((byte) 0xA0, (byte) 0x01, (byte) 0x07);
+                bleSendData((byte) 0xA0, (byte) 0x01, (byte) 0x07);
                 filmInquireButton.setClickable(false);//取消按键功能
                 timer = new Timer();
                 TimerTask task = new TimerTask() {
@@ -327,7 +323,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
         }
     }
-
+    //蓝牙广播
     public class BleReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -349,7 +345,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     bleDevice.setAddress(device.getAddress());
 
                     if (isBondDevice(device)) {
-                        bleDevice.setState("已绑定");
+                        bleDevice.setState(Constants.BLE_BOUND);
                     }
                     List<BleDevice> bleDeviceListTemp = blueToothUtil.getBleDeviceListList();
                     boolean flag = true;
@@ -377,17 +373,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                     switch (device.getBondState()) {
                         case BluetoothDevice.BOND_BONDING:
-                            LogUtil.e("正在配对......");
-                            itemClickBleDevice.setState("正在配对");
+                            LogUtil.e(Constants.BLE_PAIRING);
+                            itemClickBleDevice.setState(Constants.BLE_PAIRING);
                             break;
                         case BluetoothDevice.BOND_BONDED:
-                            itemClickBleDevice.setState("配对完成");
+                            itemClickBleDevice.setState(Constants.BLE_PAIRED);
                             connect(device, itemClickBleDevice);//连接设备
-                            LogUtil.e("配对完成......");
+                            LogUtil.e(Constants.BLE_PAIRED);
                             break;
                         case BluetoothDevice.BOND_NONE:
-                            itemClickBleDevice.setState("取消配对");
-                            LogUtil.e("取消配对......");
+                            itemClickBleDevice.setState(Constants.BLE_DEPAIR);
+                            LogUtil.e(Constants.BLE_DEPAIR);
                         default:
                             break;
                     }
@@ -398,18 +394,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
     }
-
+    //蓝牙连接上了
     private void connect(BluetoothDevice btDev, BleDevice bleDevice) {
         UUID uuid = UUID.fromString(Constants.SPP_UUID);
         try {
-            LogUtil.e("已连接......");
+            LogUtil.e(Constants.BLE_CONNECTED);
             btSocket = btDev.createRfcommSocketToServiceRecord(uuid);
-            bleDevice.setState("已连接");
+            bleDevice.setState(Constants.BLE_CONNECTED);
             bleAdapter.notifyDataSetChanged();
+
             bleDeviceListView.setVisibility(View.GONE);
             filmInquireButton.setVisibility(View.VISIBLE);
             filmAmountView.setVisibility(View.VISIBLE);
+
             choiseBleDeviceAddressView.setText(bleDevice.getAddress());
+
             toolBar = (Toolbar) findViewById(R.id.main_layout_toolbar);
             setSupportActionBar(toolBar);//将toolBar作为ActionBar
             //添加toolbar导航栏
@@ -425,7 +424,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             e.printStackTrace();
         }
     }
-
+    //判断蓝牙设备是否绑定
     private boolean isBondDevice(BluetoothDevice device) {
         boolean repeatFlag = false;
         for (BluetoothDevice bluetoothDevice :
@@ -436,7 +435,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         return repeatFlag;
     }
-
+    //蓝牙发送和接收操作
     private void createBuffer() {
         try {
             out = btSocket.getOutputStream();
@@ -445,7 +444,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             recBytes = new byte[Constants.REC_SIZE];
             bleSendData = new BleData();
             bleRecData = new BleData();
-
+            //蓝牙接收线程
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -494,21 +493,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                         bleRecData.setRandom(SthUtil.mergeByteToShort(recBytes[4], recBytes[3]));
                                         bleRecData.setContent(SthUtil.mergeByteToShort(recBytes[6], recBytes[5]));
                                         bleRecData.setCrc16(SthUtil.mergeByteToShort(recBytes[8], recBytes[7]));
-                                        Message message = new Message();
                                         switch (recBytes[1]) {
                                             case (byte) 0x01:
-                                                message.what = Constants.SEARCH_FILM;
+                                                sendMessage(Constants.SEARCH_FILM);
                                                 break;
                                             case (byte) 0x55:
-                                                message.what = Constants.REPEAT_SEND;
+                                                sendMessage(Constants.REPEAT_SEND);
                                                 break;
                                             case (byte) 0xFF:
-                                                message.what = Constants.RESET_FILM;
+                                                sendMessage(Constants.RESET_FILM);
                                                 break;
                                             default:
                                                 break;
                                         }
-                                        handler.sendMessage(message);
                                     }
                                     recCounter = 0;
                                     break;
@@ -533,8 +530,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-
-    private void sendData(byte header, byte func, byte length) {
+    //蓝牙协议发送
+    private void bleSendData(byte header, byte func, byte length) {
         short crc16;
         bleSendData.setHeader(header);
         bleSendData.setFunc(func);
