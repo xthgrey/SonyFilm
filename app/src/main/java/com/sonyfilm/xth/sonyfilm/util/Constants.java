@@ -33,6 +33,6 @@ public class Constants {
 
     public static final String QR_ANALYSIS_FAIL = "解析二维码失败";
 
-
+    public static final String RESIDUE_FILM_STRING = "当前剩余胶片数量为：";
 
 }

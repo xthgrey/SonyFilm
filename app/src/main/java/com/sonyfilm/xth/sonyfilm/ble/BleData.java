@@ -1,5 +1,14 @@
 package com.sonyfilm.xth.sonyfilm.ble;
 
+/**
+ * The type Ble data.
+ *
+ * @param
+ * @author H
+ * @decs
+ * @time 2018 /8/14 15:11
+ * @return
+ */
 public class BleData {
     private byte header;
     private byte func;

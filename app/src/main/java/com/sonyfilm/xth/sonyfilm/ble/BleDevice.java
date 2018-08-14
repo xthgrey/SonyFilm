@@ -1,5 +1,14 @@
 package com.sonyfilm.xth.sonyfilm.ble;
 
+/**
+ * The type Ble device.
+ *
+ * @param
+ * @author H
+ * @decs
+ * @time 2018 /8/14 15:11
+ * @return
+ */
 public class BleDevice {
     private String name;
     private String address;

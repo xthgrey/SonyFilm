@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">SonyFilm</string>
+    <string name="app_name">Sony胶片</string>
     <string name="ble_device">蓝牙设备：</string>
     <string name="scan_qr">扫码</string>
-    <string name="sony_film">SONY-FILM</string>
+    <string name="sony_film">SONY胶片</string>
 
     <string name="encode_qrcode">生成二维码</string>
     <string name="dencode_qrcode">扫描二维码</string>
