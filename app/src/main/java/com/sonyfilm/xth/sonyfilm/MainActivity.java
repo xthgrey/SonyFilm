@@ -58,24 +58,24 @@ import static com.sonyfilm.xth.sonyfilm.util.Constants.REC_SIZE;
  */
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
-    private BlueToothUtil blueToothUtil;
-    private ListView bleDeviceListView;
-    private BleAdapter bleAdapter;
-    private BleReceiver bleReceiver;
-    private BluetoothSocket btSocket;
+    private BlueToothUtil blueToothUtil;//蓝牙类
+    private ListView bleDeviceListView;//蓝牙设备列表
+    private BleAdapter bleAdapter;//蓝牙设备缓存器
+    private BleReceiver bleReceiver;//蓝牙接收服务
+    private BluetoothSocket btSocket;//蓝牙socket
 
-    private OutputStream out;
-    private InputStream in;
-    private byte[] sendBytes;
-    private byte[] recBytes;
-    private BleData bleSendData;
-    private BleData bleRecData;
-    private Timer timer;
+    private OutputStream out;//蓝牙设备输出流
+    private InputStream in;//蓝牙设备输入流
+    private byte[] sendBytes;//发送字节数组
+    private byte[] recBytes;//接收字节数组
+    private BleData bleSendData;//蓝牙发送类
+    private BleData bleRecData;//蓝牙接收类
+    private Timer timer;//定时器
 
-    private BleDevice itemClickBleDevice;
+    private BleDevice itemClickBleDevice;//列表子项点击获得的蓝牙设备信息
 
     //查询相关控件
-    private Toolbar toolBar;
+    private Toolbar toolBar;//工具栏
     private FloatingActionButton filmInquireButton;
     private TextView filmAmountView;
     private TextView choiseBleDeviceAddressView;
